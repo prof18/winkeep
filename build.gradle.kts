@@ -66,3 +66,46 @@ tasks.register<Test>("nativeTest") {
     )
     testLogging.showStandardStreams = true
 }
+
+java { withSourcesJar() }
+val documentationJar =
+    tasks.register<Jar>("documentationJar") {
+        dependsOn("dokkaGeneratePublicationHtml")
+        archiveClassifier.set("javadoc")
+        from(layout.buildDirectory.dir("dokka/html"))
+    }
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+            artifact(documentationJar)
+            groupId = "com.prof18"
+            artifactId = "winkeep"
+            version = "0.0.1-alpha01"
+            pom {
+                name.set("WinKeep")
+                description.set("Persistence for caller-owned classic Compose Desktop windows")
+                url.set("https://github.com/prof18/winkeep")
+                licenses {
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        distribution.set("repo")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("prof18")
+                        name.set("Marco Gomiero")
+                        url.set("https://github.com/prof18")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/prof18/winkeep")
+                    connection.set("scm:git:https://github.com/prof18/winkeep.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/prof18/winkeep.git")
+                }
+            }
+        }
+    }
+}

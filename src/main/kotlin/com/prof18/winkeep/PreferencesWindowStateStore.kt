@@ -32,11 +32,13 @@ public class PreferencesWindowStateStore internal constructor(
     internal constructor(appId: String, windowId: String, settings: Settings, flush: () -> Unit) :
         this(appId, windowId, { PreferencesBacking(settings, flush) })
 
+    /** Reads and decodes the retained delegate on IO; future schemas remain untouched. */
     public override suspend fun load(): WindowSnapshot? =
         withContext(Dispatchers.IO) {
             delegate().settings.getStringOrNull(RECORD_KEY)?.let { SnapshotCodec.decode(it, appId, windowId) }
         }
 
+    /** Writes one compact record on IO, rejecting values above the Preferences character limit. */
     public override suspend fun save(snapshot: WindowSnapshot): Unit =
         withContext(Dispatchers.IO) {
             val record = SnapshotCodec.encode(snapshot, appId, windowId)

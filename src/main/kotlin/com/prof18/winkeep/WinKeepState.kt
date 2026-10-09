@@ -41,8 +41,8 @@ public class WinKeepState internal constructor(
     public val windowState: WindowState = WindowState(size = defaultSize)
 
     /** Compose the Window only after this becomes true. */
-    public var isReady: Boolean by mutableStateOf(false)
-        private set
+    public val isReady: Boolean get() = ready
+    private var ready: Boolean by mutableStateOf(false)
     private var initialized = false
     private var closing = false
     private var readOnly = false
@@ -96,7 +96,7 @@ public class WinKeepState internal constructor(
             windowState.placement = restored.placement.toComposePlacement()
             windowState.isMinimized = false
             reducer = WindowSnapshotReducer(restored)
-            isReady = true
+            ready = true
         }
     }
 
