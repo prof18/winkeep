@@ -14,6 +14,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.awaitApplication
 import com.prof18.winkeep.WinKeepEffect
+import com.prof18.winkeep.WindowSaveResult
 import com.prof18.winkeep.rememberWinKeepState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -52,8 +53,8 @@ private fun ApplicationScope.WindowJourney(
     val journeyStarted = remember { AtomicBoolean(false) }
 
     suspend fun closeAfterFlush() {
-        val flushed = state.saveOnClose()
-        check(flushed) { "WinKeep failed to save and flush before close" }
+        val result = state.saveOnClose()
+        check(result == WindowSaveResult.Saved) { "WinKeep failed to save and flush before close: $result" }
         println("PHASE mode=$mode closed flushed=true")
         visible.value = false
         exitApplication()

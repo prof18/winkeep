@@ -3,8 +3,10 @@ package com.prof18.winkeep.fixtures
 import com.prof18.winkeep.PreferencesWindowStateStore
 import com.prof18.winkeep.SavedMonitor
 import com.prof18.winkeep.SavedPlacement
+import com.prof18.winkeep.ScreenArea
 import com.prof18.winkeep.UnsupportedSchemaException
 import com.prof18.winkeep.WindowBounds
+import com.prof18.winkeep.WindowOrigin
 import com.prof18.winkeep.WindowSnapshot
 import com.prof18.winkeep.internal.SnapshotDecodeException
 import kotlinx.coroutines.runBlocking
@@ -37,8 +39,8 @@ public object PreferencesProcessMain {
 
     private val expectedSnapshot =
         WindowSnapshot(
-            normalBounds = WindowBounds(-134.5, 72.25, 1112.0, 748.5),
+            normalBounds = WindowBounds(WindowOrigin(-134.5, 72.25), 1112.0, 748.5),
             placement = SavedPlacement.Fullscreen,
-            monitor = SavedMonitor("process-display/primary", WindowBounds(-1920.0, 0.0, 1920.0, 1080.0)),
+            monitor = SavedMonitor("process-display/primary", ScreenArea(-1920.0, 0.0, 1920.0, 1080.0)),
         )
 }

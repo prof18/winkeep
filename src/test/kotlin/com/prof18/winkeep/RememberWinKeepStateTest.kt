@@ -46,7 +46,7 @@ class RememberWinKeepStateTest {
             val firstStore = store.value as FakeStore
             try {
                 composition.setContent {
-                    val state = rememberWinKeepState(appId, id.value, size.value, store.value)
+                    val state = rememberWinKeepState(appId, id.value, size.value, store = store.value)
                     androidx.compose.runtime.SideEffect { seen += state }
                 }
                 runCurrent()
@@ -78,7 +78,7 @@ class RememberWinKeepStateTest {
                 val fresh = Composition(NoNodes(), recomposer)
                 try {
                     fresh.setContent {
-                        val state = rememberWinKeepState(appId, "second", size.value, store.value)
+                        val state = rememberWinKeepState(appId, "second", size.value, store = store.value)
                         androidx.compose.runtime.SideEffect { seen += state }
                     }
                     runCurrent()
@@ -115,6 +115,8 @@ class RememberWinKeepStateTest {
                     override suspend fun save(snapshot: WindowSnapshot) = Unit
 
                     override suspend fun flush() = Unit
+
+                    override suspend fun clear() = Unit
                 }
             var oldCalls = 0
             var newCalls = 0
@@ -132,6 +134,52 @@ class RememberWinKeepStateTest {
                 assertEquals(0, oldCalls)
                 awaitRealIo { newCalls >= 1 }
                 assertTrue(newCalls >= 1)
+            } finally {
+                composition.dispose()
+                recomposer.close()
+                runner.cancelAndJoin()
+                Dispatchers.resetMain()
+            }
+        }
+
+    @Test
+    fun `minimum size is a captured initialization input that raises defaults`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val frameClock = BroadcastFrameClock()
+            val recomposer = Recomposer(coroutineContext)
+            val runner = backgroundScope.launch(frameClock) { recomposer.runRecomposeAndApplyChanges() }
+            val composition = Composition(NoNodes(), recomposer)
+            val minimum = mutableStateOf(DpSize(700.dp, 500.dp))
+            val appId = "minimum-${UUID.randomUUID()}"
+            val seen = mutableListOf<WinKeepState>()
+            try {
+                composition.setContent {
+                    val state =
+                        rememberWinKeepState(
+                            appId,
+                            "main",
+                            defaultSize = DpSize(640.dp, 480.dp),
+                            minimumSize = minimum.value,
+                            store = FakeStore(),
+                        )
+                    androidx.compose.runtime.SideEffect { seen += state }
+                }
+                runCurrent()
+                awaitRealIo { seen.last().isReady }
+                assertEquals(DpSize(700.dp, 500.dp), seen.last().windowState.size)
+                minimum.value = DpSize(900.dp, 800.dp)
+                Snapshot.sendApplyNotifications()
+                runCurrent()
+                frameClock.sendFrame(1L)
+                runCurrent()
+                assertEquals(1, seen.distinct().size)
+                assertEquals(DpSize(700.dp, 500.dp), seen.last().windowState.size)
+                kotlin.test.assertFailsWith<IllegalArgumentException> {
+                    Composition(NoNodes(), recomposer).setContent {
+                        rememberWinKeepState("minimum-invalid", "main", minimumSize = DpSize(0.dp, 10.dp), store = FakeStore())
+                    }
+                }
             } finally {
                 composition.dispose()
                 recomposer.close()
@@ -162,6 +210,8 @@ class RememberWinKeepStateTest {
         override suspend fun save(snapshot: WindowSnapshot) = Unit
 
         override suspend fun flush() = Unit
+
+        override suspend fun clear() = Unit
     }
 
     private class NoNodes : AbstractApplier<Unit>(Unit) {

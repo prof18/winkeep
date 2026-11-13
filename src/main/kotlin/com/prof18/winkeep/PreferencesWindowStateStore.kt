@@ -48,6 +48,14 @@ public class PreferencesWindowStateStore internal constructor(
 
     public override suspend fun flush(): Unit = withContext(Dispatchers.IO) { delegate().flush() }
 
+    /** Removes only this identity's record key on IO and flushes; other identities are untouched. */
+    public override suspend fun clear(): Unit =
+        withContext(Dispatchers.IO) {
+            val backing = delegate()
+            backing.settings.remove(RECORD_KEY)
+            backing.flush()
+        }
+
     private fun delegate(): PreferencesBacking =
         synchronized(this) {
             backing ?: backingFactory().also { backing = it }

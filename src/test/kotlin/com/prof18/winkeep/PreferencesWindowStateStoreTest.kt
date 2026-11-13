@@ -14,9 +14,9 @@ import kotlin.test.assertTrue
 class PreferencesWindowStateStoreTest {
     private val snapshot =
         WindowSnapshot(
-            normalBounds = WindowBounds(-120.0, 55.0, 700.0, 500.0),
+            normalBounds = WindowBounds(WindowOrigin(-120.0, 55.0), 700.0, 500.0),
             placement = SavedPlacement.Maximized,
-            monitor = SavedMonitor("display/A", WindowBounds(-300.0, 0.0, 1200.0, 900.0)),
+            monitor = SavedMonitor("display/A", ScreenArea(-300.0, 0.0, 1200.0, 900.0)),
         )
 
     @Test
@@ -49,7 +49,7 @@ class PreferencesWindowStateStoreTest {
             assertEquals(0, creations)
             assertEquals(null, first.load())
             first.save(snapshot)
-            otherWindow.save(snapshot.copy(placement = SavedPlacement.Fullscreen))
+            otherWindow.save(WindowSnapshot(snapshot.normalBounds, SavedPlacement.Fullscreen, snapshot.monitor))
             assertEquals(snapshot, first.load())
             assertEquals(1, creations)
         }
@@ -142,15 +142,62 @@ class PreferencesWindowStateStoreTest {
         runBlocking {
             val settings = MapSettings()
             val store = PreferencesWindowStateStore(APP_ID, WINDOW_ID, settings) {}
-            val unicode = snapshot.copy(monitor = snapshot.monitor!!.copy(id = "界".repeat(3000)))
+            val unicode = withMonitorId("界".repeat(3000))
             store.save(unicode)
             assertEquals(unicode, store.load())
             val raw = settings.getString(PreferencesWindowStateStore.RECORD_KEY, "")
             assertFailsWith<IllegalArgumentException> {
-                store.save(snapshot.copy(monitor = snapshot.monitor!!.copy(id = "x".repeat(Preferences.MAX_VALUE_LENGTH))))
+                store.save(withMonitorId("x".repeat(Preferences.MAX_VALUE_LENGTH)))
             }
             assertEquals(raw, settings.getString(PreferencesWindowStateStore.RECORD_KEY, ""))
         }
+
+    @Test
+    fun `clear removes only this record and flushes`() =
+        runBlocking {
+            val settings = MapSettings().also { it.putString("unrelated", "kept") }
+            var flushes = 0
+            val store = PreferencesWindowStateStore(APP_ID, WINDOW_ID, settings) { flushes++ }
+            store.save(snapshot)
+
+            store.clear()
+
+            assertEquals(null, store.load())
+            assertFalse(settings.hasKey(PreferencesWindowStateStore.RECORD_KEY))
+            assertEquals("kept", settings.getString("unrelated", ""))
+            assertEquals(1, flushes)
+            store.clear()
+            assertEquals(2, flushes)
+        }
+
+    @Test
+    fun `clear on the real adapter is visible to a fresh reader and leaves other identities alone`() =
+        runBlocking {
+            val appId = "$APP_ID-clear-${System.nanoTime()}"
+            val windowId = "$WINDOW_ID-clear-${System.nanoTime()}"
+            val node = Preferences.userRoot().node(PreferencesWindowStateStore.nodePath(appId, windowId))
+            val otherNode = Preferences.userRoot().node(PreferencesWindowStateStore.nodePath(appId, "$windowId-other"))
+            try {
+                val writer = PreferencesWindowStateStore(appId, windowId)
+                val other = PreferencesWindowStateStore(appId, "$windowId-other")
+                writer.save(snapshot)
+                other.save(snapshot)
+                writer.flush()
+                other.flush()
+
+                PreferencesWindowStateStore(appId, windowId).clear()
+
+                assertEquals(null, PreferencesWindowStateStore(appId, windowId).load())
+                assertEquals(snapshot, PreferencesWindowStateStore(appId, "$windowId-other").load())
+            } finally {
+                node.removeNode()
+                otherNode.removeNode()
+                Preferences.userRoot().flush()
+            }
+        }
+
+    private fun withMonitorId(id: String) =
+        WindowSnapshot(snapshot.normalBounds, snapshot.placement, SavedMonitor(id, requireNotNull(snapshot.monitor).workArea))
 
     private companion object {
         const val APP_ID = "store-test-app/isolated"

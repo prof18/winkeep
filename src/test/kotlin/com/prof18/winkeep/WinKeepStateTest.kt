@@ -3,6 +3,7 @@ package com.prof18.winkeep
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.prof18.winkeep.internal.NativeObservation
+import com.prof18.winkeep.internal.Rect
 import com.prof18.winkeep.internal.ScreenInfo
 import com.russhwolf.settings.MapSettings
 import kotlinx.coroutines.CancellationException
@@ -10,6 +11,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -77,19 +79,43 @@ class WinKeepStateTest {
             assertEquals(WindowPersistenceOperation.Load, errors.single().operation)
             state.attach { observation(width = 888.0) }
             state.commit(requireNotNull(state.observe(observation())))
-            assertFalse(state.saveOnClose())
+            assertEquals(WindowSaveResult.ReadOnly, state.save())
+            assertEquals(WindowSaveResult.ReadOnly, state.saveOnClose())
             assertEquals(raw, settings.getString(PreferencesWindowStateStore.RECORD_KEY, ""))
         }
 
     @Test
-    fun `invalid custom store snapshot reports decode and falls back to defaults`() =
+    fun `custom store that cannot build a valid snapshot reports load and falls back to defaults`() =
         runTest {
             val errors = mutableListOf<WindowPersistenceError>()
             val dispatcher = StandardTestDispatcher(testScheduler)
             val state =
                 controller(
                     backgroundScope,
-                    FakeStore(loaded = snapshot(width = Double.NaN)),
+                    FakeStore(beforeLoad = { snapshot(width = Double.NaN) }),
+                    dispatcher,
+                    dispatcher,
+                    errors::add,
+                )
+
+            state.initialize()
+
+            assertTrue(state.isReady)
+            assertEquals(WindowPersistenceOperation.Load, errors.single().operation)
+            assertTrue(errors.single().cause is IllegalArgumentException)
+            assertEquals(640.dp, state.windowState.size.width)
+        }
+
+    @Test
+    fun `malformed default-store record reports decode and falls back to defaults`() =
+        runTest {
+            val settings = MapSettings().also { it.putString(PreferencesWindowStateStore.RECORD_KEY, "not-json") }
+            val errors = mutableListOf<WindowPersistenceError>()
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val state =
+                controller(
+                    backgroundScope,
+                    PreferencesWindowStateStore(APP_ID, WINDOW_ID, settings) {},
                     dispatcher,
                     dispatcher,
                     errors::add,
@@ -101,6 +127,38 @@ class WinKeepStateTest {
             assertEquals(WindowPersistenceOperation.Decode, errors.single().operation)
             assertEquals(640.dp, state.windowState.size.width)
         }
+
+    @Test
+    fun `minimum size raises a tiny saved record at restoration`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val tiny = WindowSnapshot(normalBounds = WindowBounds(WindowOrigin(20.0, 30.0), 1.0, 1.0))
+            val state =
+                controller(backgroundScope, FakeStore(loaded = tiny), dispatcher, dispatcher, minimumSize = DpSize(360.dp, 294.dp))
+
+            state.initialize()
+
+            assertEquals(DpSize(360.dp, 294.dp), state.windowState.size)
+            assertEquals(WindowBounds(WindowOrigin(20.0, 30.0), 360.0, 294.0), state.restored?.normalBounds)
+        }
+
+    @Test
+    fun `invalid minimum size fails at construction`() {
+        for (size in listOf(DpSize(0.dp, 100.dp), DpSize(100.dp, (-1).dp), DpSize(androidx.compose.ui.unit.Dp.Infinity, 100.dp))) {
+            kotlin.test.assertFailsWith<IllegalArgumentException> {
+                WinKeepState(
+                    CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+                    DpSize(640.dp, 480.dp),
+                    FakeStore(),
+                    { emptyList() },
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                    onError = {},
+                    minimumSize = size,
+                )
+            }
+        }
+    }
 
     @Test
     fun `screen enumeration failure reports screens and still opens defaults`() =
@@ -178,7 +236,7 @@ class WinKeepStateTest {
             releaseSave.complete(Unit)
             runCurrent()
 
-            assertFalse(closing.await())
+            assertEquals(WindowSaveResult.Failed, closing.await())
             assertTrue(firstErrors.isEmpty())
             assertEquals(WindowPersistenceOperation.Save, latestErrors.single().operation)
         }
@@ -199,7 +257,7 @@ class WinKeepStateTest {
             val generation = state.observe(observation())
             state.commit(requireNotNull(generation))
 
-            assertTrue(state.saveOnClose())
+            assertEquals(WindowSaveResult.Saved, state.saveOnClose())
 
             assertEquals(listOf("capture", "save:888.0", "flush"), events)
             assertEquals(
@@ -209,6 +267,53 @@ class WinKeepStateTest {
                     .normalBounds.width,
             )
             assertEquals(null, state.observe(observation(width = 999.0)))
+        }
+
+    @Test
+    fun `close before any observation has nothing to save`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = FakeStore()
+            val state = controller(backgroundScope, store, dispatcher, dispatcher)
+            assertEquals(WindowSaveResult.NothingToSave, state.save())
+            state.initialize()
+            assertEquals(WindowSaveResult.NothingToSave, state.save())
+            assertEquals(WindowSaveResult.NothingToSave, state.saveOnClose())
+            assertEquals(WindowSaveResult.NothingToSave, state.saveOnClose())
+            assertTrue(store.saves.isEmpty())
+            assertEquals(0, store.flushes)
+        }
+
+    @Test
+    fun `explicit save captures current geometry, flushes and keeps observing`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = FakeStore()
+            val state = controller(backgroundScope, store, dispatcher, dispatcher)
+            state.initialize()
+            var current = observation(width = 810.0)
+            state.attach { current }
+
+            assertEquals(WindowSaveResult.Saved, state.save())
+            assertEquals(
+                810.0,
+                store.saves
+                    .single()
+                    .normalBounds.width,
+            )
+            assertEquals(1, store.flushes)
+
+            current = observation(width = 820.0)
+            state.commit(requireNotNull(state.observe(current)))
+            advanceTimeBy(250)
+            runCurrent()
+            assertEquals(listOf(810.0, 820.0), store.saves.map { it.normalBounds.width })
+
+            current = observation(width = 830.0)
+            assertEquals(WindowSaveResult.Saved, state.saveOnClose())
+            assertEquals(WindowSaveResult.NothingToSave, state.save())
+            assertEquals(listOf(810.0, 820.0, 830.0), store.saves.map { it.normalBounds.width })
+            assertEquals(2, store.flushes)
         }
 
     @Test
@@ -240,7 +345,7 @@ class WinKeepStateTest {
                 WinKeepState(this, DpSize(640.dp, 480.dp), backing, {
                     assertTrue(java.awt.EventQueue.isDispatchThread())
                     emptyList()
-                }, kotlinx.coroutines.Dispatchers.Main.immediate, kotlinx.coroutines.Dispatchers.IO)
+                }, kotlinx.coroutines.Dispatchers.Main.immediate, kotlinx.coroutines.Dispatchers.IO, {}, DpSize.Unspecified)
             state.initialize()
             assertTrue(backingCreated)
             assertTrue(state.isReady)
@@ -301,6 +406,7 @@ class WinKeepStateTest {
         io: kotlinx.coroutines.CoroutineDispatcher,
         onError: (WindowPersistenceError) -> Unit = {},
         screenProvider: () -> List<ScreenInfo> = { listOf(screen) },
+        minimumSize: DpSize = DpSize.Unspecified,
     ): WinKeepState =
         WinKeepState(
             scope = scope,
@@ -310,17 +416,18 @@ class WinKeepStateTest {
             uiDispatcher = ui,
             ioDispatcher = io,
             onError = onError,
+            minimumSize = minimumSize,
         )
 
     private fun observation(width: Double = 700.0) =
         NativeObservation(
-            bounds = WindowBounds(20.0, 30.0, width, 480.0),
+            bounds = Rect(20.0, 30.0, width, 480.0),
             composePlacement = SavedPlacement.Floating,
             nativePlacement = SavedPlacement.Floating,
-            monitor = SavedMonitor("screen", screen.workArea),
+            monitor = SavedMonitor("screen", ScreenArea(0.0, 0.0, 1600.0, 1000.0)),
         )
 
-    private fun snapshot(width: Double = 700.0) = WindowSnapshot(normalBounds = WindowBounds(20.0, 30.0, width, 480.0))
+    private fun snapshot(width: Double = 700.0) = WindowSnapshot(normalBounds = WindowBounds(WindowOrigin(20.0, 30.0), width, 480.0))
 
     private class FakeStore(
         var loaded: WindowSnapshot? = null,
@@ -345,11 +452,13 @@ class WinKeepStateTest {
             beforeFlush()
             flushes++
         }
+
+        override suspend fun clear() = Unit
     }
 
     private companion object {
         const val APP_ID = "controller-test-app"
         const val WINDOW_ID = "controller-test-window"
-        val screen = ScreenInfo("screen", WindowBounds(0.0, 0.0, 1600.0, 1000.0), isDefault = true)
+        val screen = ScreenInfo("screen", Rect(0.0, 0.0, 1600.0, 1000.0), isDefault = true)
     }
 }

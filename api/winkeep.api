@@ -1,0 +1,133 @@
+public final class com/prof18/winkeep/PreferencesWindowStateStore : com/prof18/winkeep/WindowStateStore {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public fun clear (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun flush (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun load (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun save (Lcom/prof18/winkeep/WindowSnapshot;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/prof18/winkeep/RememberWinKeepStateKt {
+	public static final fun rememberWinKeepState-WYDyk6U (Ljava/lang/String;Ljava/lang/String;JJLcom/prof18/winkeep/WindowStateStore;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Lcom/prof18/winkeep/WinKeepState;
+}
+
+public final class com/prof18/winkeep/SavedMonitor {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Lcom/prof18/winkeep/ScreenArea;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getWorkArea ()Lcom/prof18/winkeep/ScreenArea;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/prof18/winkeep/SavedPlacement : java/lang/Enum {
+	public static final field Floating Lcom/prof18/winkeep/SavedPlacement;
+	public static final field Fullscreen Lcom/prof18/winkeep/SavedPlacement;
+	public static final field Maximized Lcom/prof18/winkeep/SavedPlacement;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/prof18/winkeep/SavedPlacement;
+	public static fun values ()[Lcom/prof18/winkeep/SavedPlacement;
+}
+
+public final class com/prof18/winkeep/ScreenArea {
+	public static final field $stable I
+	public fun <init> (DDDD)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHeight ()D
+	public final fun getWidth ()D
+	public final fun getX ()D
+	public final fun getY ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/prof18/winkeep/UnsupportedSchemaException : java/lang/Exception {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getVersion ()Ljava/lang/String;
+}
+
+public final class com/prof18/winkeep/WinKeepEffectKt {
+	public static final fun WinKeepEffect (Landroidx/compose/ui/window/FrameWindowScope;Lcom/prof18/winkeep/WinKeepState;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class com/prof18/winkeep/WinKeepState {
+	public static final field $stable I
+	public final fun getWindowState ()Landroidx/compose/ui/window/WindowState;
+	public final fun isReady ()Z
+	public final fun save (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun saveOnClose (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/prof18/winkeep/WindowBounds {
+	public static final field $stable I
+	public fun <init> (Lcom/prof18/winkeep/WindowOrigin;DD)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHeight ()D
+	public final fun getPosition ()Lcom/prof18/winkeep/WindowOrigin;
+	public final fun getWidth ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/prof18/winkeep/WindowOrigin {
+	public static final field $stable I
+	public fun <init> (DD)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getX ()D
+	public final fun getY ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/prof18/winkeep/WindowPersistenceError {
+	public static final field $stable I
+	public fun <init> (Lcom/prof18/winkeep/WindowPersistenceOperation;Ljava/lang/Exception;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Exception;
+	public final fun getOperation ()Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/prof18/winkeep/WindowPersistenceOperation : java/lang/Enum {
+	public static final field Decode Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public static final field Flush Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public static final field Load Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public static final field Save Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public static final field Screens Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/prof18/winkeep/WindowPersistenceOperation;
+	public static fun values ()[Lcom/prof18/winkeep/WindowPersistenceOperation;
+}
+
+public final class com/prof18/winkeep/WindowSaveResult : java/lang/Enum {
+	public static final field Failed Lcom/prof18/winkeep/WindowSaveResult;
+	public static final field NothingToSave Lcom/prof18/winkeep/WindowSaveResult;
+	public static final field ReadOnly Lcom/prof18/winkeep/WindowSaveResult;
+	public static final field Saved Lcom/prof18/winkeep/WindowSaveResult;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/prof18/winkeep/WindowSaveResult;
+	public static fun values ()[Lcom/prof18/winkeep/WindowSaveResult;
+}
+
+public final class com/prof18/winkeep/WindowSnapshot {
+	public static final field $stable I
+	public fun <init> (Lcom/prof18/winkeep/WindowBounds;Lcom/prof18/winkeep/SavedPlacement;Lcom/prof18/winkeep/SavedMonitor;)V
+	public synthetic fun <init> (Lcom/prof18/winkeep/WindowBounds;Lcom/prof18/winkeep/SavedPlacement;Lcom/prof18/winkeep/SavedMonitor;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMonitor ()Lcom/prof18/winkeep/SavedMonitor;
+	public final fun getNormalBounds ()Lcom/prof18/winkeep/WindowBounds;
+	public final fun getPlacement ()Lcom/prof18/winkeep/SavedPlacement;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/prof18/winkeep/WindowStateStore {
+	public abstract fun clear (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun flush (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun load (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun save (Lcom/prof18/winkeep/WindowSnapshot;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+

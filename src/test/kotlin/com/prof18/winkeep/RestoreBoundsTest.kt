@@ -1,5 +1,7 @@
 package com.prof18.winkeep
 
+import com.prof18.winkeep.internal.Dimensions
+import com.prof18.winkeep.internal.Rect
 import com.prof18.winkeep.internal.ScreenInfo
 import com.prof18.winkeep.internal.restoreBounds
 import kotlin.test.Test
@@ -14,10 +16,18 @@ class RestoreBoundsTest {
         val screen = screen("left", -1200.0, 0.0, 1200.0, 900.0, default = true)
         val saved = snapshot(bounds(-1100.0, 80.0, 700.0, 500.0), monitor = savedMonitor(screen))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 800.0, 600.0), listOf(screen))
+        val result = restoreBounds(saved, dims(800.0, 600.0), listOf(screen))
 
-        assertEquals(-1100.0, result.snapshot.normalBounds.x)
-        assertEquals(80.0, result.snapshot.normalBounds.y)
+        assertEquals(
+            -1100.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
+        assertEquals(
+            80.0,
+            result.snapshot.normalBounds.position
+                ?.y,
+        )
         assertEquals("left", result.snapshot.monitor?.id)
         assertFits(result.snapshot.normalBounds, screen.workArea)
     }
@@ -28,10 +38,14 @@ class RestoreBoundsTest {
         val other = screen("other", 500.0, 0.0, 1200.0, 900.0, default = true)
         val saved = snapshot(bounds(550.0, 100.0, 500.0, 400.0), monitor = savedMonitor(preferred))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(other, preferred))
+        val result = restoreBounds(saved, dims(700.0, 500.0), listOf(other, preferred))
 
         assertEquals("saved", result.snapshot.monitor?.id)
-        assertEquals(550.0, result.snapshot.normalBounds.x)
+        assertEquals(
+            550.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
         assertFits(result.snapshot.normalBounds, preferred.workArea)
     }
 
@@ -41,17 +55,17 @@ class RestoreBoundsTest {
         val b = screen("b", 400.0, 0.0, 900.0, 700.0, default = true)
         val saved = snapshot(bounds(550.0, 80.0, 500.0, 400.0))
 
-        val byArea = restoreBounds(saved, bounds(0.0, 0.0, 640.0, 480.0), listOf(a, b))
+        val byArea = restoreBounds(saved, dims(640.0, 480.0), listOf(a, b))
         assertEquals("b", byArea.snapshot.monitor?.id)
 
         val tieLeft = screen("left", 0.0, 0.0, 600.0, 700.0)
         val tieRight = screen("right", 400.0, 0.0, 600.0, 700.0)
         val tieDefault = screen("primary", 0.0, 0.0, 600.0, 700.0, default = true)
         val tieSaved = snapshot(bounds(200.0, 50.0, 600.0, 400.0))
-        val byDefault = restoreBounds(tieSaved, bounds(0.0, 0.0, 640.0, 480.0), listOf(tieRight, tieLeft, tieDefault))
+        val byDefault = restoreBounds(tieSaved, dims(640.0, 480.0), listOf(tieRight, tieLeft, tieDefault))
         assertEquals("primary", byDefault.snapshot.monitor?.id)
 
-        val lexicalTie = restoreBounds(tieSaved, bounds(0.0, 0.0, 640.0, 480.0), listOf(tieRight, tieLeft))
+        val lexicalTie = restoreBounds(tieSaved, dims(640.0, 480.0), listOf(tieRight, tieLeft))
         assertEquals("left", lexicalTie.snapshot.monitor?.id)
     }
 
@@ -61,12 +75,12 @@ class RestoreBoundsTest {
         val a = screen("a", 2800.0, 0.0, 1000.0, 800.0)
         val saved = snapshot(bounds(-900.0, 30.0, 500.0, 350.0))
 
-        val byId = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(z, a))
+        val byId = restoreBounds(saved, dims(700.0, 500.0), listOf(z, a))
         assertEquals("a", byId.snapshot.monitor?.id)
         assertFits(byId.snapshot.normalBounds, a.workArea)
 
         val primary = screen("primary", 4000.0, 0.0, 1000.0, 800.0, default = true)
-        val byDefault = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(z, primary, a))
+        val byDefault = restoreBounds(saved, dims(700.0, 500.0), listOf(z, primary, a))
         assertEquals("primary", byDefault.snapshot.monitor?.id)
         assertFits(byDefault.snapshot.normalBounds, primary.workArea)
     }
@@ -77,10 +91,18 @@ class RestoreBoundsTest {
         val moved = screen("main", 300.0, -200.0, 1000.0, 800.0)
         val saved = snapshot(bounds(-900.0, 70.0, 600.0, 400.0), monitor = savedMonitor(old))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(moved))
+        val result = restoreBounds(saved, dims(700.0, 500.0), listOf(moved))
 
-        assertEquals(400.0, result.snapshot.normalBounds.x)
-        assertEquals(-150.0, result.snapshot.normalBounds.y)
+        assertEquals(
+            400.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
+        assertEquals(
+            -150.0,
+            result.snapshot.normalBounds.position
+                ?.y,
+        )
         assertFits(result.snapshot.normalBounds, moved.workArea)
     }
 
@@ -90,7 +112,7 @@ class RestoreBoundsTest {
         val remaining = screen("primary", 0.0, 0.0, 900.0, 700.0, default = true)
         val saved = snapshot(bounds(-1100.0, 80.0, 600.0, 450.0), monitor = savedMonitor(vanished))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(remaining))
+        val result = restoreBounds(saved, dims(700.0, 500.0), listOf(remaining))
 
         assertEquals("primary", result.snapshot.monitor?.id)
         assertFits(result.snapshot.normalBounds, remaining.workArea)
@@ -102,11 +124,15 @@ class RestoreBoundsTest {
         val usable = screen("usable", 100.0, 0.0, 800.0, 560.0)
         val saved = snapshot(bounds(150.0, 40.0, 600.0, 800.0))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(tiny, usable))
+        val result = restoreBounds(saved, dims(700.0, 500.0), listOf(tiny, usable))
 
         assertEquals("usable", result.snapshot.monitor?.id)
         assertEquals(560.0, result.snapshot.normalBounds.height)
-        assertEquals(0.0, result.snapshot.normalBounds.y)
+        assertEquals(
+            0.0,
+            result.snapshot.normalBounds.position
+                ?.y,
+        )
         assertFits(result.snapshot.normalBounds, usable.workArea)
     }
 
@@ -115,7 +141,7 @@ class RestoreBoundsTest {
         val screen = screen("small", 0.0, 0.0, 320.0, 240.0, default = true)
         val saved = snapshot(bounds(50.0, 40.0, 1000.0, 800.0))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 900.0, 700.0), listOf(screen))
+        val result = restoreBounds(saved, dims(900.0, 700.0), listOf(screen))
 
         assertEquals(320.0, result.snapshot.normalBounds.width)
         assertEquals(240.0, result.snapshot.normalBounds.height)
@@ -127,23 +153,30 @@ class RestoreBoundsTest {
         val screen = screen("secondary", -1000.0, 100.0, 1000.0, 800.0, default = true)
         val saved = snapshot(bounds(null, null, 400.0, 300.0))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 700.0, 500.0), listOf(screen))
+        val result = restoreBounds(saved, dims(700.0, 500.0), listOf(screen))
 
-        assertEquals(-700.0, result.snapshot.normalBounds.x)
-        assertEquals(350.0, result.snapshot.normalBounds.y)
+        assertEquals(
+            -700.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
+        assertEquals(
+            350.0,
+            result.snapshot.normalBounds.position
+                ?.y,
+        )
         assertFits(result.snapshot.normalBounds, screen.workArea)
     }
 
     @Test
     fun `no screens returns valid defaults with platform default placement`() {
-        val defaults = bounds(null, null, 640.0, 480.0)
+        val defaults = dims(640.0, 480.0)
         val saved = snapshot(bounds(-900.0, 200.0, 500.0, 300.0), placement = SavedPlacement.Maximized)
 
         val result = restoreBounds(saved, defaults, emptyList())
 
         assertTrue(result.screensUnavailable)
-        assertNull(result.snapshot.normalBounds.x)
-        assertNull(result.snapshot.normalBounds.y)
+        assertNull(result.snapshot.normalBounds.position)
         assertEquals(640.0, result.snapshot.normalBounds.width)
         assertEquals(480.0, result.snapshot.normalBounds.height)
         assertEquals(SavedPlacement.Floating, result.snapshot.placement)
@@ -155,10 +188,18 @@ class RestoreBoundsTest {
         val screen = screen("scaled", 1000.0, 0.0, 2000.0, 1600.0, default = true)
         val saved = snapshot(bounds(1100.0, 100.0, 700.0, 500.0), monitor = savedMonitor(screen))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 800.0, 600.0), listOf(screen))
+        val result = restoreBounds(saved, dims(800.0, 600.0), listOf(screen))
 
-        assertEquals(1100.0, result.snapshot.normalBounds.x)
-        assertEquals(100.0, result.snapshot.normalBounds.y)
+        assertEquals(
+            1100.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
+        assertEquals(
+            100.0,
+            result.snapshot.normalBounds.position
+                ?.y,
+        )
         assertEquals(700.0, result.snapshot.normalBounds.width)
         assertEquals(500.0, result.snapshot.normalBounds.height)
     }
@@ -168,7 +209,7 @@ class RestoreBoundsTest {
         val screen = screen("main", -300.0, 50.0, 640.0, 480.0, default = true)
         val saved = snapshot(bounds(-500.0, -100.0, 900.0, 700.0))
 
-        val result = restoreBounds(saved, bounds(0.0, 0.0, 600.0, 400.0), listOf(screen))
+        val result = restoreBounds(saved, dims(600.0, 400.0), listOf(screen))
 
         assertFalse(result.screensUnavailable)
         assertFits(result.snapshot.normalBounds, screen.workArea)
@@ -177,20 +218,77 @@ class RestoreBoundsTest {
     @Test
     fun `centering near integer limit cannot produce a saturated or unrepresentable native origin`() {
         val screen = screen("edge", 2147483520.0, 0.0, 1920.0, 1080.0, default = true)
-        val result = restoreBounds(null, bounds(null, null, 800.0, 600.0), listOf(screen))
+        val result = restoreBounds(null, dims(800.0, 600.0), listOf(screen))
         val rectangle = result.snapshot.normalBounds
-        assertTrue(requireNotNull(rectangle.x).toFloat().toDouble() <= Int.MAX_VALUE.toDouble())
-        assertEquals(2147483520.0, rectangle.x)
+        assertTrue(requireNotNull(rectangle.position).x.toFloat().toDouble() <= Int.MAX_VALUE.toDouble())
+        assertEquals(2147483520.0, rectangle.position?.x)
         assertFits(rectangle, screen.workArea)
     }
 
     @Test
     fun `coarse Float origin precision shrinks inward so a full area window still fits`() {
         val screen = screen("coarse", 100000003.0, 0.0, 1000.0, 800.0, default = true)
-        val result = restoreBounds(null, bounds(null, null, 1000.0, 800.0), listOf(screen))
-        assertEquals(100000008.0, result.snapshot.normalBounds.x)
+        val result = restoreBounds(null, dims(1000.0, 800.0), listOf(screen))
+        assertEquals(
+            100000008.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
         assertEquals(995.0, result.snapshot.normalBounds.width)
         assertFits(result.snapshot.normalBounds, screen.workArea)
+    }
+
+    @Test
+    fun `minimum size raises a tiny saved record`() {
+        val screen = screen("main", 0.0, 0.0, 1600.0, 1000.0, default = true)
+        val saved = snapshot(bounds(100.0, 100.0, 1.0, 1.0), monitor = savedMonitor(screen))
+
+        val result = restoreBounds(saved, dims(800.0, 600.0), listOf(screen), minimum = dims(360.0, 294.0))
+
+        assertEquals(360.0, result.snapshot.normalBounds.width)
+        assertEquals(294.0, result.snapshot.normalBounds.height)
+        assertEquals(
+            100.0,
+            result.snapshot.normalBounds.position
+                ?.x,
+        )
+        assertFits(result.snapshot.normalBounds, screen.workArea)
+    }
+
+    @Test
+    fun `minimum size raises defaults with and without screens`() {
+        val screen = screen("main", 0.0, 0.0, 1600.0, 1000.0, default = true)
+        val withScreen = restoreBounds(null, dims(200.0, 100.0), listOf(screen), minimum = dims(360.0, 294.0))
+        assertEquals(360.0, withScreen.snapshot.normalBounds.width)
+        assertEquals(294.0, withScreen.snapshot.normalBounds.height)
+
+        val noScreens = restoreBounds(null, dims(200.0, 100.0), emptyList(), minimum = dims(360.0, 294.0))
+        assertEquals(360.0, noScreens.snapshot.normalBounds.width)
+        assertEquals(294.0, noScreens.snapshot.normalBounds.height)
+        assertNull(noScreens.snapshot.normalBounds.position)
+    }
+
+    @Test
+    fun `screen smaller than minimum size wins`() {
+        val screen = screen("small", 0.0, 0.0, 320.0, 240.0, default = true)
+        val saved = snapshot(bounds(10.0, 10.0, 100.0, 100.0))
+
+        val result = restoreBounds(saved, dims(800.0, 600.0), listOf(screen), minimum = dims(360.0, 294.0))
+
+        assertEquals(320.0, result.snapshot.normalBounds.width)
+        assertEquals(240.0, result.snapshot.normalBounds.height)
+        assertFits(result.snapshot.normalBounds, screen.workArea)
+    }
+
+    @Test
+    fun `larger saved size is kept above the minimum`() {
+        val screen = screen("main", 0.0, 0.0, 1600.0, 1000.0, default = true)
+        val saved = snapshot(bounds(10.0, 10.0, 900.0, 700.0))
+
+        val result = restoreBounds(saved, dims(800.0, 600.0), listOf(screen), minimum = dims(360.0, 294.0))
+
+        assertEquals(900.0, result.snapshot.normalBounds.width)
+        assertEquals(700.0, result.snapshot.normalBounds.height)
     }
 
     private fun snapshot(
@@ -199,7 +297,7 @@ class RestoreBoundsTest {
         monitor: SavedMonitor? = null,
     ) = WindowSnapshot(normalBounds = normalBounds, placement = placement, monitor = monitor)
 
-    private fun savedMonitor(screen: ScreenInfo) = SavedMonitor(screen.id, screen.workArea)
+    private fun savedMonitor(screen: ScreenInfo) = SavedMonitor(screen.id, requireNotNull(screen.workArea.toScreenAreaOrNull()))
 
     private fun screen(
         id: String,
@@ -208,23 +306,29 @@ class RestoreBoundsTest {
         width: Double,
         height: Double,
         default: Boolean = false,
-    ) = ScreenInfo(id, bounds(x, y, width, height), default)
+    ) = ScreenInfo(id, Rect(x, y, width, height), default)
 
     private fun bounds(
         x: Double?,
         y: Double?,
         width: Double,
         height: Double,
-    ) = WindowBounds(x, y, width, height)
+    ) = WindowBounds(if (x != null && y != null) WindowOrigin(x, y) else null, width, height)
+
+    private fun dims(
+        width: Double,
+        height: Double,
+    ) = Dimensions(width, height)
 
     private fun assertFits(
         rectangle: WindowBounds,
-        usable: WindowBounds,
+        usable: Rect,
     ) {
-        val x = rectangle.x ?: error("Restored rectangle must have a concrete x position")
-        val y = rectangle.y ?: error("Restored rectangle must have a concrete y position")
-        val left = usable.x ?: error("Usable area must have a concrete x position")
-        val top = usable.y ?: error("Usable area must have a concrete y position")
+        val origin = rectangle.position ?: error("Restored rectangle must have a concrete position")
+        val x = origin.x
+        val y = origin.y
+        val left = usable.x
+        val top = usable.y
         assertTrue(x >= left, "left edge $x is before usable edge $left")
         assertTrue(y >= top, "top edge $y is before usable edge $top")
         assertTrue(x + rectangle.width <= left + usable.width, "right edge exceeds usable area")

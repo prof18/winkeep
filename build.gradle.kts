@@ -1,22 +1,35 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
+import java.time.Duration
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.vanniktech.maven.publish)
     `java-library`
-    `maven-publish`
 }
 
-group = "com.prof18"
-version = "0.0.1-alpha01"
+// Coordinates, version and POM metadata live in gradle.properties (GROUP, VERSION_NAME, POM_*).
 
 kotlin {
+    // Build and test on JDK 21, but publish Java 17 bytecode against the JDK 17 API.
     jvmToolchain(21)
     explicitApi()
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+        freeCompilerArgs.add("-Xjdk-release=17")
+    }
+
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation()
 }
+
+tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
 
 dependencies {
     api(compose.runtime)
@@ -35,7 +48,6 @@ dependencies {
 tasks.test {
     exclude("**/*NativeTest*")
     systemProperty("java.awt.headless", "true")
-    // M1 has native fixtures only; require discovery once ordinary tests exist.
     failOnNoDiscoveredTests =
         fileTree("src/test") {
             include("**/*Test.kt")
@@ -57,6 +69,11 @@ tasks.register<Test>("nativeTest") {
     if (System.getProperty("os.name").startsWith("Mac")) {
         jvmArgs("--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED", "--add-exports=java.desktop/com.apple.eawt.event=ALL-UNNAMED")
     }
+    // On a Wayland session Robot otherwise captures through the screencast portal, which blocks on a permission dialog.
+    if (System.getProperty("os.name").startsWith("Linux")) {
+        systemProperty("awt.robot.screenshotMethod", "x11")
+    }
+    timeout.set(Duration.ofMinutes(20))
     maxParallelForks = 1
     javaLauncher.set(
         javaToolchains.launcherFor {
@@ -67,45 +84,10 @@ tasks.register<Test>("nativeTest") {
     testLogging.showStandardStreams = true
 }
 
-java { withSourcesJar() }
-val documentationJar =
-    tasks.register<Jar>("documentationJar") {
-        dependsOn("dokkaGeneratePublicationHtml")
-        archiveClassifier.set("javadoc")
-        from(layout.buildDirectory.dir("dokka/html"))
-    }
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            artifact(documentationJar)
-            groupId = "com.prof18"
-            artifactId = "winkeep"
-            version = "0.0.1-alpha01"
-            pom {
-                name.set("WinKeep")
-                description.set("Persistence for caller-owned classic Compose Desktop windows")
-                url.set("https://github.com/prof18/winkeep")
-                licenses {
-                    license {
-                        name.set("Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                        distribution.set("repo")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("prof18")
-                        name.set("Marco Gomiero")
-                        url.set("https://github.com/prof18")
-                    }
-                }
-                scm {
-                    url.set("https://github.com/prof18/winkeep")
-                    connection.set("scm:git:https://github.com/prof18/winkeep.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/prof18/winkeep.git")
-                }
-            }
-        }
-    }
+mavenPublishing {
+    configure(KotlinJvm(javadocJar = JavadocJar.Dokka("dokkaGeneratePublicationHtml"), sourcesJar = true))
+}
+
+signing {
+    setRequired { gradle.taskGraph.allTasks.any { it.name.contains("MavenCentral") } }
 }

@@ -1,27 +1,27 @@
 package com.prof18.winkeep.internal
 
-import com.prof18.winkeep.UnsupportedSchemaException
-import com.prof18.winkeep.WindowBounds
-import com.prof18.winkeep.WindowSnapshot
+import androidx.compose.ui.unit.DpSize
 import kotlin.math.roundToInt
 
-internal class InvalidSnapshotException(
-    message: String,
-) : IllegalArgumentException(message)
-
-internal fun validateSnapshot(snapshot: WindowSnapshot): WindowSnapshot {
-    if (snapshot.schemaVersion > 1) throw UnsupportedSchemaException(snapshot.schemaVersion.toString())
-    if (snapshot.schemaVersion != 1) throw InvalidSnapshotException("Schema version must be a positive integer")
-    validateBounds(snapshot.normalBounds)
-    snapshot.monitor?.let { validateBounds(it.workArea, requirePosition = true) }
-    return snapshot
+/** Positive caller-supplied dimensions in classic Compose units. */
+internal data class Dimensions(
+    val width: Double,
+    val height: Double,
+) {
+    init {
+        requireNativeDimension(width, "width")
+        requireNativeDimension(height, "height")
+    }
 }
 
-internal fun validateDefaults(bounds: WindowBounds): WindowBounds {
+internal fun validateDimensions(
+    size: DpSize,
+    label: String,
+): Dimensions {
     try {
-        return validateBounds(bounds)
-    } catch (error: InvalidSnapshotException) {
-        throw IllegalArgumentException("Invalid caller default dimensions", error)
+        return Dimensions(size.width.value.toDouble(), size.height.value.toDouble())
+    } catch (error: IllegalArgumentException) {
+        throw IllegalArgumentException("Invalid $label: ${error.message}", error)
     }
 }
 
@@ -35,32 +35,27 @@ internal fun validateIdentity(
     }
 }
 
-internal fun validateBounds(
-    bounds: WindowBounds,
-    requirePosition: Boolean = false,
-): WindowBounds {
-    if ((bounds.x == null) != (bounds.y == null)) throw InvalidSnapshotException("Position must be a complete pair")
-    if (requirePosition && bounds.x == null) throw InvalidSnapshotException("Monitor work area requires a position")
-    bounds.x?.let { validateNumber(it, dimension = false) }
-    bounds.y?.let { validateNumber(it, dimension = false) }
-    validateNumber(bounds.width, dimension = true)
-    validateNumber(bounds.height, dimension = true)
-    return bounds
-}
-
-private fun validateNumber(
+/** A coordinate must be finite and survive conversion through Float to a native Int. */
+internal fun requireNativeCoordinate(
     value: Double,
-    dimension: Boolean,
+    name: String,
 ) {
     val nativeValue = value.toFloat().toDouble()
-    if (!value.isFinite() ||
-        !nativeValue.isFinite() ||
-        nativeValue < Int.MIN_VALUE.toDouble() ||
-        nativeValue > Int.MAX_VALUE.toDouble()
-    ) {
-        throw InvalidSnapshotException("Window value is outside finite native coordinate range: $value")
-    }
-    if (dimension && (value <= 0 || nativeValue.roundToInt() < 1)) {
-        throw InvalidSnapshotException("Window dimensions must round to at least one native coordinate unit")
+    require(
+        value.isFinite() &&
+            nativeValue.isFinite() &&
+            nativeValue >= Int.MIN_VALUE.toDouble() &&
+            nativeValue <= Int.MAX_VALUE.toDouble(),
+    ) { "Window $name is outside the finite native coordinate range: $value" }
+}
+
+/** A dimension follows the coordinate rule and must also round to at least one native unit. */
+internal fun requireNativeDimension(
+    value: Double,
+    name: String,
+) {
+    requireNativeCoordinate(value, name)
+    require(value > 0 && value.toFloat().roundToInt() >= 1) {
+        "Window $name must round to at least one native coordinate unit: $value"
     }
 }
