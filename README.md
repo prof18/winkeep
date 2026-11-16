@@ -223,6 +223,7 @@ Wrap the store in `remember`, because WinKeep keeps the first instance it receiv
 
 | Document | Contents |
 | --- | --- |
+| [Architecture](docs/architecture.md) | How the source is organized and how one window flows from launch to close |
 | [API reference](docs/api.md) | Every public type, its validation rules and threading |
 | [Storage and durability](docs/storage.md) | Record format, node path, debounce and flush rules |
 | [Platform testing](docs/platform-testing.md) | Native test coverage and the manual checklist per OS |
